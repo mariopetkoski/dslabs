@@ -76,8 +76,8 @@ public class ClientUDP extends Thread {
 
     @Override
     public void run() {
-        Receiver receiver = new Receiver(socket);
-        Sender sender = new Sender(socket);
+       Receiver receiver = new Receiver(socket);
+       Sender sender = new Sender(socket);
         receiver.start();
         sender.start();
     }

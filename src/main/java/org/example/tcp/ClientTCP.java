@@ -5,8 +5,8 @@ import java.net.*;
 import java.util.Scanner;
 
 class Receiver extends Thread {
-    Socket socket;
-    int timeoutCounter = 0;
+    private Socket socket;
+    private int timeoutCounter = 0;
 
     public Receiver(Socket socket) {
         this.socket = socket;
@@ -30,7 +30,6 @@ class Receiver extends Thread {
                     } else {
                         if (timeoutCounter >= 60) {
                             System.out.println("Connection closed due to inactivity.");
-                            socket.close();
                             break;
                         } else {
                             timeoutCounter++;
@@ -40,16 +39,21 @@ class Receiver extends Thread {
                 }
             } else {
                 System.out.println("Invalid connection request. Closing the connection.");
-                socket.close();
             }
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
 
 class Sender extends Thread {
-    Socket socket;
+    private Socket socket;
 
     public Sender(Socket socket) {
         this.socket = socket;
@@ -57,10 +61,8 @@ class Sender extends Thread {
 
     @Override
     public void run() {
-        Scanner scanner = new Scanner(System.in);
-
-        try {
-            PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+        try (Scanner scanner = new Scanner(System.in);
+             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
 
             while (true) {
                 String message = scanner.nextLine();
@@ -73,30 +75,35 @@ class Sender extends Thread {
 }
 
 public class ClientTCP {
-    int port;
+    private int sendPort;
+    private int receivePort;
 
-    Receiver receiver;
-    Sender sender;
-    Socket socket;
+    private ServerSocket serverSocket;
 
-    public ClientTCP(int port) {
-        this.port = port;
+    public ClientTCP(int sendPort, int receivePort) throws IOException {
+        this.sendPort = sendPort;
+        this.receivePort = receivePort;
+        serverSocket = new ServerSocket(receivePort);
     }
 
     public void start() {
         try {
-            socket = new Socket("localhost", port);
-            Receiver receiver = new Receiver(socket);
+            Socket socket = new Socket("localhost", sendPort);
             Sender sender = new Sender(socket);
-            receiver.start();
             sender.start();
+
+            while (true) {
+                Socket receiverSocket = serverSocket.accept();
+                Receiver receiver = new Receiver(receiverSocket);
+                receiver.start();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static void main(String[] args) {
-        ClientTCP clientTcp = new ClientTCP(8484);
+    public static void main(String[] args) throws IOException {
+        ClientTCP clientTcp = new ClientTCP(1234, 5678);
         clientTcp.start();
     }
 }
